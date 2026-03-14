@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Pantry Manager</title>
+<style>
+:root {
+  --bg:#fff;--bg2:#f5f5f5;--bg3:#eee;
+  --text:#111;--text2:#666;--text3:#999;
+  --border:rgba(0,0,0,.12);--border2:rgba(0,0,0,.2);
+  --green:#1D9E75;--green-bg:#e1f5ee;--green-text:#0f6e56;
+  --amber:#BA7517;--amber-bg:#faeeda;--amber-text:#854f0b;
+  --red:#E24B4A;--red-bg:#fcebeb;--red-text:#a32d2d;
+  --blue:#378ADD;--blue-bg:#e6f1fb;--blue-text:#185fa5;
+  --r:8px;--rl:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
+    --text:#f0f0f0;--text2:#aaa;--text3:#777;
+    --border:rgba(255,255,255,.12);--border2:rgba(255,255,255,.2);
+    --green-bg:#0a2e1e;--green-text:#5dcaa5;
+    --amber-bg:#2e1f05;--amber-text:#fac775;
+    --red-bg:#2e0f0f;--red-text:#f09595;
+    --blue-bg:#0c1e35;--blue-text:#85b7eb;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
+.app{max-width:500px;margin:0 auto;padding-bottom:84px;}
+
+/* ── HEADER ─────────────────────────────────────────────────────────────── */
+.header{padding:12px 14px 8px;border-bottom:.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.app-title{font-size:17px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s;}
+.sync-dot.synced{background:var(--green);}
+.sync-dot.syncing{background:var(--amber);animation:pulse .8s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.header-actions{display:flex;gap:5px;}
+.stats-row{display:flex;gap:5px;margin-bottom:7px;flex-wrap:wrap;}
+.stat-pill{background:var(--bg2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);}
+.stat-pill.low{background:var(--amber-bg);color:var(--amber-text);}
+.stat-pill.out{background:var(--red-bg);color:var(--red-text);}
+.search-bar{width:100%;padding:9px 12px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:15px;margin-bottom:7px;outline:none;}
+.search-bar:focus{border-color:var(--blue);}
+.cat-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.cat-scroll::-webkit-scrollbar{display:none;}
+.cat-btn{white-space:nowrap;padding:5px 13px;border:.5px solid var(--border2);border-radius:20px;font-size:12px;cursor:pointer;background:transparent;color:var(--text2);flex-shrink:0;}
+.cat-btn.active{background:var(--blue-bg);color:var(--blue-text);border-color:var(--blue);}
+.hdr-btn{padding:5px 11px;border:.5px solid var(--border2);border-radius:20px;font-size:12px;cursor:pointer;background:transparent;color:var(--text2);}
+.hdr-btn.active{background:var(--amber-bg);color:var(--amber-text);border-color:var(--amber);}
+
+/* ── LIST ───────────────────────────────────────────────────────────────── */
+.list-body{padding:0 14px;}
+.section-head{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:12px 0 5px;border-bottom:.5px solid var(--border);margin-bottom:2px;}
+.item-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:11px 0;border-bottom:.5px solid var(--border);}
+.item-row:last-child{border-bottom:none;}
+.item-left{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0;}
+.status-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dot-ok{background:var(--green);}
+.dot-low{background:var(--amber);}
+.dot-out{background:var(--red);}
+.item-name{font-size:14px;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.item-controls{display:flex;align-items:center;flex-shrink:0;}
+.qty-btn{width:30px;height:30px;border:.5px solid var(--border2);background:var(--bg2);font-size:18px;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center;}
+.qty-btn:first-child{border-radius:var(--r) 0 0 var(--r);}
+.qty-btn:last-child{border-radius:0 var(--r) var(--r) 0;}
+.qty-btn:active{background:var(--bg3);}
+.qty-display{min-width:44px;text-align:center;font-size:12px;font-weight:600;color:var(--text);border-top:.5px solid var(--border2);border-bottom:.5px solid var(--border2);padding:4px 2px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.qty-display.low{color:var(--amber);}
+.qty-display.out{color:var(--red);}
+.empty-state{padding:3rem 1rem;text-align:center;color:var(--text3);font-size:14px;}
+.loading-state{padding:3rem 1rem;text-align:center;color:var(--text3);font-size:14px;}
+
+/* ── FAB ────────────────────────────────────────────────────────────────── */
+.fab-area{position:fixed;bottom:0;left:0;right:0;padding:10px 14px 20px;background:var(--bg);border-top:.5px solid var(--border);display:flex;gap:7px;max-width:500px;margin:0 auto;z-index:10;}
+.fab-btn{flex:1;padding:12px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);font-size:13px;font-weight:500;cursor:pointer;color:var(--text);}
+.fab-btn:active{background:var(--bg3);}
+.fab-btn.primary{background:var(--green-bg);color:var(--green-text);border-color:var(--green);}
+.fab-btn.voice-fab{flex:0 0 48px;font-size:20px;}
+.fab-btn.voice-fab.listening{background:var(--red-bg);border-color:var(--red);}
+
+/* ── MODAL ──────────────────────────────────────────────────────────────── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;align-items:flex-end;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg);border-radius:var(--rl) var(--rl) 0 0;padding:20px 16px 28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:14px;}
+.modal label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;margin-top:10px;}
+.modal input,.modal select,.modal textarea{width:100%;padding:10px 12px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:15px;outline:none;}
+.modal input:focus,.modal select:focus{border-color:var(--blue);}
+.modal-btns{display:flex;gap:8px;margin-top:16px;}
+.modal-btn{flex:1;padding:12px;border:.5px solid var(--border2);border-radius:var(--r);background:transparent;font-size:14px;font-weight:500;cursor:pointer;color:var(--text);}
+.modal-btn:active{background:var(--bg2);}
+.modal-btn.confirm{background:var(--green-bg);color:var(--green-text);border-color:var(--green);}
+.modal-btn.danger{background:var(--red-bg);color:var(--red-text);border-color:var(--red);}
+.voice-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:8px;min-height:16px;}
+
+/* ── GROCERY LIST PANEL ─────────────────────────────────────────────────── */
+.panel{display:none;padding:12px 14px;border-bottom:.5px solid var(--border);}
+.panel.open{display:block;}
+.panel-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:8px;}
+.grocery-item{font-size:13px;color:var(--text);padding:4px 0;border-bottom:.5px solid var(--border);}
+.grocery-item:last-child{border-bottom:none;}
+.panel-actions{display:flex;gap:6px;margin-top:10px;}
+.panel-btn{flex:1;padding:9px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;color:var(--text);}
+
+/* ── TOAST ──────────────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:500;display:none;z-index:30;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.toast.show{display:block;}
+.toast.warn{background:var(--amber);}
+.toast.err{background:var(--red);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">
+        <span>🏠 Pantry</span>
+        <div class="sync-dot" id="sync-dot" title="Sync status"></div>
+      </div>
+      <div class="header-actions">
+        <button class="hdr-btn" onclick="toggleLow()" id="low-btn">Low stock</button>
+        <button class="hdr-btn" onclick="toggleGrocery()" id="grocery-btn">Grocery list</button>
+      </div>
+    </div>
+    <div class="stats-row" id="stats-row"></div>
+    <input class="search-bar" type="search" placeholder="Search pantry..." oninput="onSearch(this.value)">
+    <div class="cat-scroll" id="cat-row"></div>
+  </div>
+
+  <!-- GROCERY LIST PANEL -->
+  <div class="panel" id="grocery-panel">
+    <div class="panel-title">Items to buy (at or below minimum)</div>
+    <div id="grocery-items"></div>
+    <div class="panel-actions">
+      <button class="panel-btn" onclick="copyGrocery()">Copy list</button>
+      <button class="panel-btn" onclick="toggleGrocery()">Close</button>
+    </div>
+  </div>
+
+  <div class="list-body" id="list-body">
+    <div class="loading-state">Loading your pantry...</div>
+  </div>
+</div>
+
+<!-- FAB -->
+<div class="fab-area">
+  <button class="fab-btn primary" onclick="openAdd()">+ Add item</button>
+  <button class="fab-btn" onclick="forceSync()" id="sync-btn">Sync now</button>
+  <button class="fab-btn voice-fab" id="voice-fab" onclick="toggleVoice()">🎤</button>
+</div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-bg" id="item-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add item</div>
+    <label>Item name</label>
+    <input type="text" id="f-name" placeholder="e.g. Chicken breast" autocomplete="off">
+    <label>Category</label>
+    <select id="f-cat"></select>
+    <label>Or create new category</label>
+    <input type="text" id="f-cat-new" placeholder="Leave blank to use selection above">
+    <label>Quantity (number + unit)</label>
+    <input type="text" id="f-qty" placeholder="e.g. 500 g, 3 unit, 1 bag">
+    <label>Location</label>
+    <input type="text" id="f-loc" placeholder="e.g. Pantry, Freezer, Garage Freezer">
+    <label>Minimum quantity (triggers low stock alert)</label>
+    <input type="text" id="f-min" placeholder="e.g. 1 (same unit as above)">
+    <div class="voice-hint" id="voice-hint"></div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeModal('item-modal')">Cancel</button>
+      <button class="modal-btn danger" id="del-btn" onclick="deleteItem()" style="display:none;">Delete</button>
+      <button class="modal-btn confirm" onclick="saveItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+// The app talks to /api/pantry which routes to your Netlify Function.
+// The function holds your GitHub token securely server-side.
+const API = '/api/pantry';
+const LOCAL_KEY = 'pantry_cache_v1'; // localStorage cache for offline fallback
+const SYNC_INTERVAL = 30000; // auto-sync every 30 seconds
+
+// ── SEED DATA (used only if GitHub file is empty on first deploy) ─────────────
+const SEED = [
+  ["Coconut Sugar","Baking",500,"g","Top Cabinet",100],["Baking Powder","Baking",248,"g","Cooking Area",100],["Baking Soda","Baking",500,"g","Cooking Area",100],["Vanilla Extract","Baking",150,"ml","Cooking Area",10],["Coconut Oil","Baking",250,"ml","Cooking Area",100],["White Corn Syrup","Baking",450,"ml","Cooking Area",100],["Icing Sugar","Baking",586,"g","Top Cabinet",100],["All Purpose Flour","Baking",1500,"g","Top Cabinet",100],["White Sugar","Baking",241,"g","Top Cabinet",100],["Rolled Oats","Baking",1700,"g","Top Cabinet",100],
+  ["Soy Sauce","Condiments",300,"ml","Cooking Area",100],["Balsamic Vinegar","Condiments",500,"ml","Cooking Area",100],["Oyster Sauce","Condiments",100,"g","Cooking Area",10],["Sweet Soy Sauce","Condiments",450,"ml","Cooking Area",100],["Hoisin Sauce","Condiments",200,"ml","Cooking Area",100],["Rice Vinegar","Condiments",325,"ml","Cooking Area",100],["Mirin","Condiments",150,"ml","Cooking Area",100],["Roasted Sesame Oil","Condiments",90,"ml","Cooking Area",10],["Chicken Bouillon Mix","Condiments",6,"unit","Cooking Area",6],["Shaoxing Wine","Condiments",50,"ml","Cooking Area",10],["Ketchup","Condiments",3,"unit","Pantry",1],["Salsa","Condiments",1,"unit","Pantry",1],["Butter Chicken Sauce","Condiments",1,"unit","Pantry",1],["Teriyaki Sauce","Condiments",1,"unit","Pantry",1],["Mayo","Condiments",1,"unit","Pantry",1],["Pasta Sauce","Condiments",1,"unit","Pantry",1],["Beef Broth","Condiments",1,"unit","Pantry",1],["Vinegar","Condiments",1,"unit","Pantry",0.2],
+  ["Coconut Milk","Canned Goods",2,"can","Pantry",1],["Canned Beans Heinz","Canned Goods",4,"can","Pantry",1],["Canned Chicken","Canned Goods",11,"unit","Pantry",6],["Black Beans","Canned Goods",2,"can","Pantry",2],["Dark Red Kidney Beans","Canned Goods",2,"can","Pantry",2],["Diced Tomatoes","Canned Goods",2,"can","Pantry",2],["Chickpeas","Canned Goods",4,"can","Pantry",2],["Cream of Mushroom","Canned Goods",1,"can","Pantry",1],["Cream of Chicken","Canned Goods",1,"can","Pantry",1],["Black Olives","Canned Goods",1,"can","Pantry",1],["Pineapple Chunks","Canned Goods",1,"can","Pantry",1],["Mango Pulp","Canned Goods",1,"can","Pantry",1],
+  ["Rice","Dried Goods",500,"g","Cooking Area",500],["Brown Rice","Dried Goods",1,"kg","Pantry",0.2],["Red Lentils Pasta","Dried Goods",1,"kg","Pantry",0.2],["Spaghetti","Dried Goods",1.25,"packs","Pantry",0.5],["Quinoa","Dried Goods",0.5,"kg","Pantry",0.25],["Vega Protein","Dried Goods",0.7,"unit","Pantry",0.25],["Roasted Chana","Dried Goods",400,"g","Pantry",100],["Moong Dhal","Dried Goods",4000,"g","Top Cabinet",500],["Kalie Dhal","Dried Goods",400,"g","Top Cabinet",500],["Lall Dhal","Dried Goods",3000,"g","Top Cabinet",500],["Tetley Tea","Dried Goods",300,"bags","Pantry",20],
+  ["Shawna Paratha","Frozen",10,"pack","Freezer",2],["Breakfast Sausages","Frozen",15,"unit","Freezer",2],["California Mix Veggies","Frozen",1,"bag","Freezer",1],["Berry Blend","Frozen",1,"bag","Freezer",1],["Wild Blueberries","Frozen",1,"bag","Freezer",1],["Stir Fry Medley","Frozen",0.5,"bag","Freezer",1],["Chicken Strips","Frozen",13,"unit","Freezer",6],["Jamaican Patty","Frozen",2,"unit","Freezer",2],["Veggie Burger","Frozen",2,"unit","Freezer",2],["Stewing Beef","Frozen",875,"g","Freezer",500],["Ground Beef","Frozen",1000,"g","Freezer",500],["Sirloin Steak","Frozen",3,"unit","Freezer",2],["Beef Burger","Frozen",6,"unit","Freezer",2],["Sausage","Frozen",10,"unit","Freezer",5],["Pita","Frozen",5,"unit","Freezer",2],["Tandoori Naan","Frozen",5,"unit","Freezer",2],["Garlic Naan","Frozen",5,"unit","Freezer",2],["Vanilla Ice Cream","Frozen",0.5,"box","Freezer",0.2],["Ice Cream Sandwiches","Frozen",4.5,"unit","Freezer",2],["Frozen Chicken Breast","Frozen",16,"unit","Garage Freezer",4],["Salmon Fillets","Frozen",4,"unit","Garage Freezer",1],["Teriyaki Chicken","Frozen",1,"pack","Garage Freezer",1],["Chipotle Chicken","Frozen",1,"pack","Garage Freezer",1],["Bacon","Frozen",1,"bag","Garage Freezer",1],["Shawarma Rice","Frozen",4,"bag","Garage Freezer",1],["Sausage Rolls","Frozen",32,"unit","Garage Freezer",10],["Brar Samosa","Frozen",25,"unit","Garage Freezer",5],["Chicken Broccoli Cheese","Frozen",8,"unit","Garage Freezer",2],["Chicken Parmesan","Frozen",2,"unit","Garage Freezer",2],["Frozen Pizza","Frozen",6,"box","Garage Freezer",2],["Spring Rolls","Frozen",1,"box","Garage Freezer",1],["Ginger Beef","Frozen",1,"unit","Garage Freezer",1],["Sweet Potato Fries","Frozen",1,"bag","Garage Freezer",1],["Swedish Meatballs","Frozen",1,"bag","Garage Freezer",1],["Rainbow Tortellini","Frozen",2,"bag","Garage Freezer",1],["Mango Sorbet","Frozen",4,"unit","Garage Freezer",2],["Kit Kat (Freezer)","Frozen",6,"unit","Garage Freezer",2],["Volcano Cake","Frozen",1,"unit","Garage Freezer",1],
+  ["Ghee","Oils",600,"g","Cooking Area",100],["Avocado Oil","Oils",2,"unit","Pantry",1],["Olive Oil","Oils",1.5,"unit","Pantry",1],["Vegetable Oil","Oils",0.8,"unit","Pantry",0.5],
+  ["Greek Seasoning","Spices",525,"g","Cooking Area",10],["Montreal Chicken","Spices",675,"g","Cooking Area",10],["Taco Seasoning","Spices",500,"g","Cooking Area",10],["Sea Salt","Spices",850,"g","Cooking Area",100],["Ground Black Pepper","Spices",150,"g","Cooking Area",10],["Cajun Seasoning","Spices",150,"g","Cooking Area",10],["Garlic Powder","Spices",100,"g","Cooking Area",10],["Onion Powder","Spices",116,"g","Cooking Area",10],["Chili Powder","Spices",220,"g","Top Cabinet",10],["Turmeric Powder","Spices",200,"g","Top Cabinet",10],["Garam Masala","Spices",220,"g","Top Cabinet",10],["Cumin Whole","Spices",400,"g","Top Cabinet",10],["Cumin Powder","Spices",200,"g","Top Cabinet",10],["Coriander Powder","Spices",340,"g","Top Cabinet",10],["Curry Powder","Spices",113,"g","Top Cabinet",10],["Cayenne Pepper","Spices",93,"g","Top Cabinet",10],["Paprika","Spices",62,"g","Top Cabinet",10],["Shawarma Spice","Spices",75,"g","Cooking Area",10],["Everything Bagel","Spices",65,"g","Cooking Area",10],["Smoked Paprika & Onion","Spices",360,"g","Cooking Area",10],["Steak Seasoning","Spices",100,"g","Cooking Area",10],["Garlic Parmesan","Spices",320,"g","Cooking Area",10],["Italian Seasoning","Spices",20,"g","Cooking Area",10],["Oregano Leaves","Spices",30,"g","Top Cabinet",10],["Tahin","Spices",125,"g","Cooking Area",10],["Ground Cinnamon","Spices",5,"g","Cooking Area",10],["Nutmeg Ground","Spices",22,"g","Cooking Area",10],["Bay Leaves","Spices",15,"g","Top Cabinet",10],["Cinnamon Sticks","Spices",37,"g","Top Cabinet",10],["Sesame Seed","Spices",56,"g","Top Cabinet",10],["Kasoori Methi","Spices",25,"g","Top Cabinet",10],["Green Cardamom","Spices",60,"g","Top Cabinet",10],["Crushed Chili Peppers","Spices",66,"g","Top Cabinet",10],["Clove Whole","Spices",61,"g","Top Cabinet",10],
+  ["Granola Bars","Snacks",14,"unit","Pantry",10],["White Cheddar Popcorn","Snacks",110,"g","Pantry",10],["Toppable Crackers","Snacks",0.8,"pack","Pantry",1],["Goldfish","Snacks",1,"pack","Pantry",1],["Doritos","Snacks",1,"bag","Pantry",0],["Nachos","Snacks",1,"bag","Pantry",0],
+  ["Fuzzy Peach","Sweets",308,"g","Pantry",10],["Kit Kat","Sweets",5,"packs","Pantry",1],["JubJubs","Sweets",9,"unit","Pantry",5],
+  ["Liquid IV","Health",46,"unit","Pantry",10],["Vitamin D","Health",1,"unit","Pantry",1],["Gummy Multivitamins","Health",1,"unit","Pantry",1],["Metamucil","Health",1,"unit","Pantry",1],
+  ["Hot Mango Chutney","Jar Goods",1,"jar","Pantry",1],["Italian Herb Pesto","Jar Goods",1,"jar","Pantry",1],["Pickled Jalapenos","Jar Goods",1,"jar","Pantry",1],["Green Olives","Jar Goods",1,"jar","Pantry",1],
+  ["Club Soda","Drinks",6,"unit","Pantry",2],["Tonic Water","Drinks",6,"unit","Pantry",2],["Coke","Drinks",1,"unit","Pantry",1],
+  ["White Potatoes","Fresh",2,"lb","Pantry",1],["Yellow Onions","Fresh",9,"unit","Pantry",2],
+  ["KD","Boxed Foods",1,"unit","Pantry",1],["Instant Noodles","Boxed Foods",1,"unit","Pantry",1],["Buldak","Boxed Foods",2,"packs","Pantry",1],["Taco Dinner Kit","Boxed Foods",1,"unit","Pantry",1],
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let items = [];
+let nextId = 0;
+let activeCat = 'All';
+let searchTerm = '';
+let lowOnly = false;
+let editingId = null;
+let recognition = null;
+let isListening = false;
+let pendingSave = false;
+let saveTimer = null;
+
+// ── SYNC STATUS ───────────────────────────────────────────────────────────────
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot ' + status;
+  dot.title = { synced: 'Synced with cloud', syncing: 'Syncing...', error: 'Sync error — using local cache' }[status] || '';
+}
+
+// ── DATA LAYER ────────────────────────────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+
+function getStatus(item) {
+  if (item.qty <= 0) return 'out';
+  if (item.qty <= item.minQty) return 'low';
+  return 'ok';
+}
+
+function fmtQty(q, u) {
+  const n = Number(q);
+  const d = n === Math.floor(n) ? n.toString() : n.toFixed(1);
+  return `${d} ${u}`;
+}
+
+// Load from GitHub via Netlify Function
+async function loadFromCloud() {
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length) {
+      items = data;
+      nextId = Math.max(...items.map(i => i.id)) + 1;
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
+      setSyncStatus('synced');
+      return true;
+    }
+    throw new Error('Empty or invalid data');
+  } catch (err) {
+    console.warn('Cloud load failed:', err.message);
+    setSyncStatus('error');
+    return false;
+  }
+}
+
+// Load from localStorage cache (offline fallback)
+function loadFromCache() {
+  const saved = localStorage.getItem(LOCAL_KEY);
+  if (saved) {
+    try {
+      items = JSON.parse(saved);
+      nextId = Math.max(...items.map(i => i.id)) + 1;
+      return true;
+    } catch(e) {}
+  }
+  return false;
+}
+
+// First-time seed
+function loadSeed() {
+  items = SEED.map((r, i) => ({ id: i, name: r[0], category: r[1], qty: r[2], unit: r[3], location: r[4], minQty: r[5], updated: today() }));
+  nextId = items.length;
+}
+
+// Save to GitHub via Netlify Function (debounced — waits 1s after last change)
+function scheduleSave() {
+  pendingSave = true;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushToCloud, 1000);
+}
+
+async function pushToCloud() {
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(API, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(items),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    pendingSave = false;
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
+    setSyncStatus('synced');
+    toast('Saved to cloud', 'ok');
+  } catch(err) {
+    console.warn('Cloud save failed:', err.message);
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
+    setSyncStatus('error');
+    toast('Saved locally — sync failed', 'warn');
+  }
+}
+
+async function forceSync() {
+  document.getElementById('sync-btn').textContent = 'Syncing...';
+  await loadFromCloud();
+  render();
+  buildCatRow();
+  document.getElementById('sync-btn').textContent = 'Sync now';
+  toast('Synced', 'ok');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Try cloud first, fall back to cache, fall back to seed
+  const cloudOk = await loadFromCloud();
+  if (!cloudOk) {
+    const cacheOk = loadFromCache();
+    if (!cacheOk) {
+      loadSeed();
+      toast('First run — using default pantry', 'warn');
+    } else {
+      toast('Offline — using cached data', 'warn');
+    }
+  }
+  buildCatRow();
+  render();
+
+  // Auto-sync every 30s so both phones stay in sync
+  setInterval(async () => {
+    if (!pendingSave) {
+      await loadFromCloud();
+      render();
+    }
+  }, SYNC_INTERVAL);
+}
+
+// ── CATEGORIES ────────────────────────────────────────────────────────────────
+function allCats() { return ['All', ...[...new Set(items.map(i => i.category))].sort()]; }
+
+function buildCatRow() {
+  document.getElementById('cat-row').innerHTML = allCats().map(c =>
+    `<button class="cat-btn${c === activeCat ? ' active' : ''}" onclick="setCat('${c}')">${c}</button>`
+  ).join('');
+
+  const sel = document.getElementById('f-cat');
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = [...new Set(items.map(i => i.category))].sort()
+      .map(c => `<option value="${c}">${c}</option>`).join('');
+    if (cur) sel.value = cur;
+  }
+}
+
+function setCat(c) { activeCat = c; lowOnly = false; document.getElementById('low-btn').classList.remove('active'); buildCatRow(); render(); }
+function toggleLow() { lowOnly = !lowOnly; document.getElementById('low-btn').classList.toggle('active', lowOnly); activeCat = 'All'; buildCatRow(); render(); }
+function onSearch(v) { searchTerm = v; render(); }
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function getFiltered() {
+  return items.filter(i => {
+    if (lowOnly && getStatus(i) === 'ok') return false;
+    if (activeCat !== 'All' && i.category !== activeCat) return false;
+    if (searchTerm && !i.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function renderStats() {
+  const low = items.filter(i => getStatus(i) === 'low').length;
+  const out = items.filter(i => getStatus(i) === 'out').length;
+  document.getElementById('stats-row').innerHTML =
+    `<span class="stat-pill">${items.length} items</span>` +
+    (low ? `<span class="stat-pill low">${low} low</span>` : '') +
+    (out ? `<span class="stat-pill out">${out} out</span>` : '');
+}
+
+function render() {
+  const filtered = getFiltered();
+  const grouped = {};
+  filtered.forEach(i => { if (!grouped[i.category]) grouped[i.category] = []; grouped[i.category].push(i); });
+  const el = document.getElementById('list-body');
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-state">No items found.</div>';
+    renderStats();
+    return;
+  }
+
+  el.innerHTML = Object.keys(grouped).sort().map(cat => `
+    <div class="section-head">${cat}</div>
+    ${grouped[cat].map(item => {
+      const s = getStatus(item);
+      return `<div class="item-row" id="row-${item.id}">
+        <div class="item-left" onclick="openEdit(${item.id})">
+          <div class="status-dot dot-${s}"></div>
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-sub">${item.location}</div>
+          </div>
+        </div>
+        <div class="item-controls">
+          <button class="qty-btn" onclick="adj(${item.id},-1)">−</button>
+          <div class="qty-display${s !== 'ok' ? ' ' + s : ''}">${fmtQty(item.qty, item.unit)}</div>
+          <button class="qty-btn" onclick="adj(${item.id},1)">+</button>
+        </div>
+      </div>`;
+    }).join('')}
+  `).join('');
+
+  renderStats();
+}
+
+// ── ITEM ACTIONS ──────────────────────────────────────────────────────────────
+function adj(id, delta) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(0, Math.round((item.qty + delta) * 10) / 10);
+  item.updated = today();
+  render();
+  scheduleSave();
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add item';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-cat-new').value = '';
+  document.getElementById('f-qty').value = '';
+  document.getElementById('f-loc').value = 'Pantry';
+  document.getElementById('f-min').value = '';
+  document.getElementById('del-btn').style.display = 'none';
+  document.getElementById('voice-hint').textContent = '';
+  buildCatRow();
+  openModal('item-modal');
+  setTimeout(() => document.getElementById('f-name').focus(), 200);
+}
+
+function openEdit(id) {
+  editingId = id;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('modal-title').textContent = 'Edit item';
+  document.getElementById('f-name').value = item.name;
+  buildCatRow();
+  document.getElementById('f-cat').value = item.category;
+  document.getElementById('f-cat-new').value = '';
+  document.getElementById('f-qty').value = `${item.qty} ${item.unit}`;
+  document.getElementById('f-loc').value = item.location;
+  document.getElementById('f-min').value = item.minQty || '';
+  document.getElementById('del-btn').style.display = 'block';
+  document.getElementById('voice-hint').textContent = '';
+  openModal('item-modal');
+}
+
+function saveItem() {
+  const name = document.getElementById('f-name').value.trim();
+  const catNew = document.getElementById('f-cat-new').value.trim();
+  const cat = catNew || document.getElementById('f-cat').value || 'Other';
+  const qtyRaw = document.getElementById('f-qty').value.trim();
+  const loc = document.getElementById('f-loc').value.trim() || 'Pantry';
+  const minRaw = document.getElementById('f-min').value.trim();
+
+  if (!name || !qtyRaw) { toast('Name and quantity required', 'warn'); return; }
+  const parts = qtyRaw.match(/^([\d.]+)\s*(.*)$/);
+  const qty = parts ? parseFloat(parts[1]) : 1;
+  const unit = parts && parts[2] ? parts[2].trim() : 'unit';
+  const minQty = minRaw ? parseFloat(minRaw) : 0;
+
+  if (editingId !== null) {
+    const idx = items.findIndex(i => i.id === editingId);
+    if (idx >= 0) items[idx] = { ...items[idx], name, category: cat, qty, unit, location: loc, minQty, updated: today() };
+  } else {
+    items.push({ id: nextId++, name, category: cat, qty, unit, location: loc, minQty, updated: today() });
+  }
+
+  buildCatRow(); render(); closeModal('item-modal'); scheduleSave();
+  toast(editingId !== null ? 'Updated' : 'Added', 'ok');
+}
+
+function deleteItem() {
+  const item = items.find(i => i.id === editingId);
+  if (!item || !confirm(`Delete "${item.name}"?`)) return;
+  items = items.filter(i => i.id !== editingId);
+  buildCatRow(); render(); closeModal('item-modal'); scheduleSave();
+  toast('Deleted', 'warn');
+}
+
+// ── GROCERY LIST ──────────────────────────────────────────────────────────────
+function toggleGrocery() {
+  const panel = document.getElementById('grocery-panel');
+  const isOpen = panel.classList.toggle('open');
+  if (isOpen) {
+    const needed = items.filter(i => getStatus(i) !== 'ok');
+    document.getElementById('grocery-items').innerHTML = needed.length
+      ? needed.map(i => `<div class="grocery-item">${i.name} — need ${fmtQty(i.minQty, i.unit)} (have ${fmtQty(i.qty, i.unit)})</div>`).join('')
+      : '<div class="grocery-item" style="color:var(--text3)">Nothing needed — pantry is stocked!</div>';
+  }
+}
+
+function copyGrocery() {
+  const needed = items.filter(i => getStatus(i) !== 'ok');
+  const text = needed.length
+    ? 'Grocery List:\n' + needed.map(i => `• ${i.name}`).join('\n')
+    : 'Nothing needed!';
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard', 'ok'));
+}
+
+// ── VOICE ─────────────────────────────────────────────────────────────────────
+function toggleVoice() {
+  if (isListening) stopVoice();
+  else { openAdd(); setTimeout(startVoice, 300); }
+}
+
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('Voice not supported — use Chrome on Android', 'warn'); return; }
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.lang = 'en-CA';
+  recognition.interimResults = false;
+  recognition.onresult = e => {
+    const t = e.results[0][0].transcript;
+    document.getElementById('f-name').value = t;
+    const m = t.match(/(\d+\.?\d*)\s*(g|kg|ml|l|unit|units|bag|bags|can|cans|pack|packs|lb|lbs)/i);
+    if (m) document.getElementById('f-qty').value = m[0];
+    document.getElementById('voice-hint').textContent = `Heard: "${t}"`;
+  };
+  recognition.onend = () => { isListening = false; document.getElementById('voice-fab').classList.remove('listening'); };
+  recognition.onerror = () => { isListening = false; document.getElementById('voice-fab').classList.remove('listening'); };
+  recognition.start();
+  isListening = true;
+  document.getElementById('voice-fab').classList.add('listening');
+  document.getElementById('voice-hint').textContent = 'Listening... say the item name';
+}
+
+function stopVoice() { if (recognition) recognition.stop(); isListening = false; document.getElementById('voice-fab').classList.remove('listening'); }
+
+// ── MODAL UTILS ───────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); if (isListening) stopVoice(); }
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show${type !== 'ok' ? ' ' + type : ''}`;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── KICK OFF ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
